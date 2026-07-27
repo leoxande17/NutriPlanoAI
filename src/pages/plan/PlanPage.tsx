@@ -1,0 +1,239 @@
+import { useEffect, useState, useCallback } from 'react'
+import { useParams, useNavigate } from 'react-router-dom'
+import { supabase } from '../../lib/supabase'
+import { Button } from '../../components/ui/Button'
+import { Textarea } from '../../components/ui/Textarea'
+import { MacroRing } from '../../components/ui/MacroRing'
+import type { MealPlan } from '../../types/database'
+
+async function invokeGenerate(paymentId: string, adjustmentNote?: string) {
+  const { data: sessionData } = await supabase.auth.getSession()
+  const accessToken = sessionData.session?.access_token
+
+  return supabase.functions.invoke<{ meal_plan: MealPlan; error?: string }>('generate-meal-plan', {
+    body: { payment_id: paymentId, adjustment_note: adjustmentNote },
+    headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
+  })
+}
+
+export function PlanPage() {
+  const { paymentId } = useParams<{ paymentId: string }>()
+  const navigate = useNavigate()
+
+  const [plan, setPlan] = useState<MealPlan | null>(null)
+  const [expiresAt, setExpiresAt] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [generating, setGenerating] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const [showAdjustForm, setShowAdjustForm] = useState(false)
+  const [adjustmentNote, setAdjustmentNote] = useState('')
+
+  const loadOrGenerate = useCallback(async () => {
+    if (!paymentId) return
+    setLoading(true)
+    setError(null)
+
+    const { data: payment } = await supabase
+      .from('payments')
+      .select('expires_at')
+      .eq('id', paymentId)
+      .single()
+    setExpiresAt(payment?.expires_at ?? null)
+
+    const { data: existing } = await supabase
+      .from('meal_plans')
+      .select('*')
+      .eq('payment_id', paymentId)
+      .order('version', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+
+    if (existing) {
+      setPlan(existing)
+      setLoading(false)
+      return
+    }
+
+    // Nenhum plano ainda: gera a primeira versão automaticamente
+    setGenerating(true)
+    const { data, error: fnError } = await invokeGenerate(paymentId)
+    setGenerating(false)
+    setLoading(false)
+
+    if (fnError || !data?.meal_plan) {
+      setError('Não foi possível gerar seu plano agora. Tente novamente em instantes.')
+      return
+    }
+    setPlan(data.meal_plan)
+  }, [paymentId])
+
+  useEffect(() => {
+    loadOrGenerate()
+  }, [loadOrGenerate])
+
+  async function handleRequestAdjustment() {
+    if (!paymentId || !adjustmentNote.trim()) return
+    setGenerating(true)
+    setError(null)
+
+    const { data, error: fnError } = await invokeGenerate(paymentId, adjustmentNote.trim())
+    setGenerating(false)
+
+    if (fnError || !data?.meal_plan) {
+      setError('Não foi possível gerar o ajuste. Tente novamente.')
+      return
+    }
+    setPlan(data.meal_plan)
+    setShowAdjustForm(false)
+    setAdjustmentNote('')
+  }
+
+  const canAdjust = expiresAt ? new Date(expiresAt) > new Date() : false
+
+  if (loading || generating) {
+    return (
+      <div className="min-h-screen bg-paper flex flex-col items-center justify-center gap-6 p-6 text-center">
+        <MacroRing size={140} />
+        <p className="text-ink-soft">
+          {generating ? 'Montando seu plano com a IA, isso leva alguns segundos...' : 'Carregando...'}
+        </p>
+      </div>
+    )
+  }
+
+  if (error && !plan) {
+    return (
+      <div className="min-h-screen bg-paper flex flex-col items-center justify-center gap-6 p-6 text-center">
+        <p className="text-danger max-w-sm">{error}</p>
+        <Button onClick={loadOrGenerate}>Tentar novamente</Button>
+      </div>
+    )
+  }
+
+  if (!plan) return null
+
+  const { summary, meals, recommendations } = plan.content
+  const totalMacroCal = summary.macros.protein * 4 + summary.macros.carbs * 4 + summary.macros.fat * 9
+  const proteinPct = totalMacroCal ? Math.round(((summary.macros.protein * 4) / totalMacroCal) * 100) : 0
+  const carbsPct = totalMacroCal ? Math.round(((summary.macros.carbs * 4) / totalMacroCal) * 100) : 0
+  const fatPct = totalMacroCal ? 100 - proteinPct - carbsPct : 0
+
+  return (
+    <div className="min-h-screen bg-paper px-4 py-10 sm:py-16">
+      <div className="max-w-2xl mx-auto">
+        <div className="mb-6 text-center">
+          <span className="font-display text-xl text-primary">NutriPlano AI</span>
+        </div>
+
+        <div className="bg-surface rounded-2xl border border-line p-6 sm:p-8 mb-6">
+          <div className="flex flex-col sm:flex-row items-center gap-6">
+            <MacroRing protein={proteinPct} carbs={carbsPct} fat={fatPct} size={160} />
+            <div className="flex-1 text-center sm:text-left">
+              <p className="font-mono-data text-xs uppercase tracking-widest text-coral mb-1">
+                Versão {plan.version}
+              </p>
+              <h1 className="font-display text-2xl text-ink mb-2">
+                {summary.dailyCalories} kcal por dia
+              </h1>
+              <div className="flex gap-4 justify-center sm:justify-start text-sm font-mono-data text-ink-soft">
+                <span><span className="text-primary font-medium">{summary.macros.protein}g</span> proteína</span>
+                <span><span className="text-mango font-medium">{summary.macros.carbs}g</span> carbo</span>
+                <span><span className="text-coral font-medium">{summary.macros.fat}g</span> gordura</span>
+              </div>
+            </div>
+          </div>
+          {summary.notes && (
+            <p className="text-sm text-ink-soft mt-4 pt-4 border-t border-line">{summary.notes}</p>
+          )}
+        </div>
+
+        <div className="flex flex-col gap-4 mb-6">
+          {meals.map((meal, i) => (
+            <div key={i} className="bg-surface rounded-2xl border border-line p-6">
+              <div className="flex items-baseline justify-between mb-3">
+                <h2 className="font-display text-lg text-ink">{meal.name}</h2>
+                <span className="font-mono-data text-xs text-ink-soft">{meal.time}</span>
+              </div>
+              <ul className="flex flex-col gap-2">
+                {meal.items.map((item, j) => (
+                  <li key={j} className="flex justify-between text-sm">
+                    <span className="text-ink">{item.food}</span>
+                    <span className="text-ink-soft font-mono-data">{item.quantity}</span>
+                  </li>
+                ))}
+              </ul>
+              {meal.totalCalories && (
+                <p className="text-xs text-ink-soft font-mono-data mt-3 pt-3 border-t border-line">
+                  {meal.totalCalories} kcal
+                </p>
+              )}
+            </div>
+          ))}
+        </div>
+
+        {recommendations && recommendations.length > 0 && (
+          <div className="bg-primary-soft rounded-2xl p-6 mb-6">
+            <h2 className="font-display text-lg text-primary-dark mb-3">Recomendações</h2>
+            <ul className="flex flex-col gap-2">
+              {recommendations.map((rec, i) => (
+                <li key={i} className="text-sm text-primary-dark flex gap-2">
+                  <span>•</span>
+                  <span>{rec}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        <div className="bg-surface rounded-2xl border border-line p-6">
+          {canAdjust ? (
+            <>
+              <p className="text-sm text-ink-soft mb-3">
+                Você pode pedir ajustes no seu plano até{' '}
+                {expiresAt && new Date(expiresAt).toLocaleDateString('pt-BR')}.
+              </p>
+              {!showAdjustForm ? (
+                <Button variant="ghost" onClick={() => setShowAdjustForm(true)}>
+                  Pedir ajuste no plano
+                </Button>
+              ) : (
+                <div className="flex flex-col gap-3">
+                  <Textarea
+                    label="O que você gostaria de ajustar?"
+                    placeholder="Ex: trocar o frango por peixe, reduzir uma refeição, mais opções vegetarianas..."
+                    value={adjustmentNote}
+                    onChange={(e) => setAdjustmentNote(e.target.value)}
+                  />
+                  {error && <p className="text-sm text-danger">{error}</p>}
+                  <div className="flex gap-3">
+                    <Button
+                      onClick={handleRequestAdjustment}
+                      loading={generating}
+                      disabled={!adjustmentNote.trim()}
+                    >
+                      Gerar novo plano
+                    </Button>
+                    <Button variant="ghost" onClick={() => setShowAdjustForm(false)}>
+                      Cancelar
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </>
+          ) : (
+            <p className="text-sm text-ink-soft">
+              A janela de ajustes gratuitos deste plano já encerrou.
+            </p>
+          )}
+        </div>
+
+        <div className="text-center mt-6">
+          <Button variant="ghost" onClick={() => navigate('/painel')}>
+            Voltar ao painel
+          </Button>
+        </div>
+      </div>
+    </div>
+  )
+}
