@@ -1,0 +1,15 @@
+project_id = "nutriplano-ai"
+
+# mp-webhook é chamada pelo Mercado Pago, não por um usuário autenticado no Supabase,
+# então não deve exigir JWT. Definir aqui é mais confiável do que só a flag
+# --no-verify-jwt na hora do deploy (há um bug conhecido do CLI que às vezes ignora
+# a flag em redeploys) — confirme também em Dashboard > Edge Functions > mp-webhook
+# > Settings que "Enforce JWT Verification" está desligado após o primeiro deploy.
+[functions.mp-webhook]
+verify_jwt = false
+
+[functions.mp-create-order]
+verify_jwt = true
+
+[functions.generate-meal-plan]
+verify_jwt = true
