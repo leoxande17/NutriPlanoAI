@@ -4,6 +4,8 @@ import { supabase } from '../../lib/supabase'
 import { Button } from '../../components/ui/Button'
 import { Textarea } from '../../components/ui/Textarea'
 import { MacroRing } from '../../components/ui/MacroRing'
+import { useAuth } from '../../contexts/AuthContext'
+import { generateMealPlanPdf } from '../../lib/generateMealPlanPdf'
 import type { MealPlan } from '../../types/database'
 
 async function invokeGenerate(paymentId: string, adjustmentNote?: string) {
@@ -19,6 +21,7 @@ async function invokeGenerate(paymentId: string, adjustmentNote?: string) {
 export function PlanPage() {
   const { paymentId } = useParams<{ paymentId: string }>()
   const navigate = useNavigate()
+  const { user } = useAuth()
 
   const [plan, setPlan] = useState<MealPlan | null>(null)
   const [expiresAt, setExpiresAt] = useState<string | null>(null)
@@ -91,6 +94,11 @@ export function PlanPage() {
 
   const canAdjust = expiresAt ? new Date(expiresAt) > new Date() : false
 
+  function handleDownloadPdf() {
+    if (!plan) return
+    generateMealPlanPdf(plan, user?.user_metadata?.full_name)
+  }
+
   if (loading || generating) {
     return (
       <div className="min-h-screen bg-paper flex flex-col items-center justify-center gap-6 p-6 text-center">
@@ -146,6 +154,12 @@ export function PlanPage() {
           {summary.notes && (
             <p className="text-sm text-ink-soft mt-4 pt-4 border-t border-line">{summary.notes}</p>
           )}
+        </div>
+
+        <div className="flex justify-center mb-6">
+          <Button variant="secondary" onClick={handleDownloadPdf}>
+            Baixar plano em PDF
+          </Button>
         </div>
 
         <div className="flex flex-col gap-4 mb-6">
