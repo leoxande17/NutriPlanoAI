@@ -1,4 +1,4 @@
-// Edge Function: gera (ou regenera com ajuste) o plano alimentar via Claude API,
+// Edge Function: gera (ou regenera com ajuste) o plano alimentar via API da OpenAI,
 // a partir da anamnese vinculada a um pagamento aprovado.
 //
 // Endpoint: POST /functions/v1/generate-meal-plan
@@ -12,7 +12,7 @@
 import { corsHeaders, handleCors } from '../_shared/cors.ts'
 import { getAuthenticatedUser, getSupabaseAdmin } from '../_shared/supabase-admin.ts'
 import { calculateNutritionTargets } from '../_shared/nutrition.ts'
-import { callClaudeForJson } from '../_shared/claude.ts'
+import { callOpenAIForJson } from '../_shared/openai.ts'
 import { MEAL_PLAN_SYSTEM_PROMPT, buildMealPlanUserPrompt } from '../_shared/meal-plan-prompt.ts'
 import type { AnamnesisForPrompt } from '../_shared/meal-plan-prompt.ts'
 import { isValidMealPlanContent } from '../_shared/meal-plan-validator.ts'
@@ -115,7 +115,7 @@ Deno.serve(async (req: Request) => {
       adjustment_note
     )
 
-    const content = await callClaudeForJson<MealPlanContent>(MEAL_PLAN_SYSTEM_PROMPT, prompt)
+    const content = await callOpenAIForJson<MealPlanContent>(MEAL_PLAN_SYSTEM_PROMPT, prompt)
 
     if (!isValidMealPlanContent(content)) {
       return new Response(
