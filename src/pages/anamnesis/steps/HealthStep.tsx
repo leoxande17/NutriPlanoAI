@@ -40,7 +40,7 @@ export function HealthStep({ data, errors, onChange, onChangeArray }: StepProps)
 
       <Textarea
         label="Condições de saúde relevantes (opcional)"
-        placeholder="Ex: epicondilite no cotovelo, diabetes, hipertensão, problemas intestinais..."
+        placeholder="Ex: diabetes, hipertensão, problemas intestinais..."
         hint="Essas informações ajudam a IA a adaptar o plano com mais segurança."
         value={data.medical_conditions}
         error={errors.medical_conditions}
