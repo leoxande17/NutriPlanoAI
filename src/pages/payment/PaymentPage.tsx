@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Button } from '../../components/ui/Button'
+import { Input } from '../../components/ui/Input'
 import { MacroRing } from '../../components/ui/MacroRing'
 import { useAuth } from '../../contexts/AuthContext'
 import { supabase } from '../../lib/supabase'
@@ -50,13 +51,13 @@ export function PaymentPage() {
   const [pixLoading, setPixLoading] = useState(false)
   const [pixError, setPixError] = useState<string | null>(null)
   const [pixData, setPixData] = useState<CreateOrderResponse['pix'] | null>(null)
+  const [pixEmail, setPixEmail] = useState('')
   const [paymentId, setPaymentId] = useState<string | null>(null)
   const [approved, setApproved] = useState(false)
 
   // Monta o Card Payment Brick quando a aba "Cartão" está ativa
   useEffect(() => {
     if (tab !== 'card' || !anamnesisId || !user) return
-    const currentUser = user
 
     let cancelled = false
 
@@ -86,7 +87,7 @@ export function PaymentPage() {
                   body: {
                     anamnesis_id: anamnesisId,
                     method: 'card',
-                    payer_email: currentUser.email,
+                    payer_email: formData.payer.email,
                     card: {
                       token: formData.token,
                       payment_method_id: formData.payment_method_id,
@@ -158,7 +159,7 @@ export function PaymentPage() {
   }, [paymentId, approved])
 
   async function handleGeneratePix() {
-    if (!anamnesisId || !user) return
+    if (!anamnesisId || !user || !pixEmail.trim()) return
     setPixLoading(true)
     setPixError(null)
 
@@ -168,7 +169,7 @@ export function PaymentPage() {
     const { data, error } = await supabase.functions.invoke<CreateOrderResponse>(
       'mp-create-order',
       {
-        body: { anamnesis_id: anamnesisId, method: 'pix', payer_email: user.email },
+        body: { anamnesis_id: anamnesisId, method: 'pix', payer_email: pixEmail.trim() },
         headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
       }
     )
@@ -257,11 +258,26 @@ export function PaymentPage() {
           )}
 
           {tab === 'pix' && (
-            <div className="flex flex-col items-center gap-4">
+            <div className="flex flex-col items-center gap-4 w-full">
               {!pixData && (
-                <Button onClick={handleGeneratePix} loading={pixLoading} className="w-full">
-                  Gerar Pix
-                </Button>
+                <>
+                  <Input
+                    label="E-mail"
+                    type="email"
+                    placeholder="seuemail@exemplo.com"
+                    value={pixEmail}
+                    onChange={(e) => setPixEmail(e.target.value)}
+                    className="w-full"
+                  />
+                  <Button
+                    onClick={handleGeneratePix}
+                    loading={pixLoading}
+                    disabled={!pixEmail.trim()}
+                    className="w-full"
+                  >
+                    Gerar Pix
+                  </Button>
+                </>
               )}
 
               {pixData?.qr_code_base64 && (
