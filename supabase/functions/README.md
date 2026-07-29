@@ -1,7 +1,8 @@
 # Deploy das Edge Functions — passo a passo completo
 
 Este projeto usa **Checkout Transparente via API de Orders** (Mercado Pago) +
-**API da OpenAI** para geração dos planos, orquestrados por 3 Edge Functions no Supabase.
+**API do Google Gemini** (tier gratuito) para geração dos planos, orquestrados por 3
+Edge Functions no Supabase.
 Este guia cobre desde a instalação do CLI até o teste do fluxo completo.
 
 Projeto Supabase já criado e com as migrations aplicadas: `ntoplgykwvoszroneyku`.
@@ -57,7 +58,7 @@ pular se só for usado para isso.
 ```bash
 supabase secrets set MP_ACCESS_TOKEN=SEU_ACCESS_TOKEN_DE_TESTE
 supabase secrets set MP_WEBHOOK_SECRET=SUA_CHAVE_SECRETA_DO_WEBHOOK
-supabase secrets set OPENAI_API_KEY=SUA_CHAVE_DA_API_OPENAI
+supabase secrets set GEMINI_API_KEY=SUA_CHAVE_DA_API_GEMINI
 ```
 
 - `MP_ACCESS_TOKEN`: Access Token de teste ou produção (Suas integrações > Dados da
@@ -65,10 +66,11 @@ supabase secrets set OPENAI_API_KEY=SUA_CHAVE_DA_API_OPENAI
 - `MP_WEBHOOK_SECRET`: só existe depois que você configurar o webhook no painel do MP
   (passo 4) — pode voltar aqui pra definir depois. Sem ela, `mp-webhook` funciona mas
   **sem validar a assinatura**.
-- `OPENAI_API_KEY`: chave da API da OpenAI (platform.openai.com), usada pela
-  function `generate-meal-plan`. Opcionalmente, defina também `OPENAI_MODEL` para
-  trocar o modelo usado (padrão: `gpt-4.1-mini` — bom equilíbrio custo/qualidade;
-  `gpt-4.1-nano` é uma opção ainda mais barata).
+- `GEMINI_API_KEY`: chave da API do Google Gemini — **gratuita**, gere em
+  https://aistudio.google.com/apikey (não precisa de cartão de crédito). Usada pela
+  function `generate-meal-plan`. Opcionalmente, defina também `GEMINI_MODEL` para
+  trocar o modelo usado (padrão: `gemini-2.5-flash`; `gemini-2.5-flash-lite` tem
+  limites de requisição/dia ainda maiores no tier gratuito).
 
 `SUPABASE_URL`, `SUPABASE_ANON_KEY` e `SUPABASE_SERVICE_ROLE_KEY` já são injetadas
 automaticamente pelo runtime de Edge Functions — não precisam ser configuradas.
