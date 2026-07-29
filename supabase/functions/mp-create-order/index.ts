@@ -152,7 +152,8 @@ Deno.serve(async (req: Request) => {
     )
   } catch (err) {
     console.error('Erro inesperado em mp-create-order:', err)
-    return new Response(JSON.stringify({ error: 'Erro inesperado ao processar pagamento.' }), {
+    const message = err instanceof Error ? err.message : 'Erro inesperado ao processar pagamento.'
+    return new Response(JSON.stringify({ error: message }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })

@@ -8,6 +8,22 @@ import type { PaymentStatus } from '../../types/database'
 
 const PLAN_PRICE_LABEL = 'R$ 29,90'
 
+// supabase-js não expõe automaticamente o corpo da resposta de erro das Edge
+// Functions — precisa ler o Response bruto em error.context para pegar a
+// mensagem real que a function devolveu.
+async function extractErrorMessage(error: unknown, fallback: string): Promise<string> {
+  try {
+    const context = (error as { context?: Response })?.context
+    if (context && typeof context.json === 'function') {
+      const body = await context.json()
+      if (body?.error) return body.error as string
+    }
+  } catch {
+    // ignora e usa o fallback
+  }
+  return fallback
+}
+
 type Tab = 'card' | 'pix'
 
 interface CreateOrderResponse {
@@ -84,7 +100,9 @@ export function PaymentPage() {
               )
 
               if (error || !data) {
-                setCardError('Não foi possível processar o pagamento. Tente novamente.')
+                setCardError(
+                  await extractErrorMessage(error, 'Não foi possível processar o pagamento. Tente novamente.')
+                )
                 return
               }
 
@@ -158,7 +176,7 @@ export function PaymentPage() {
     setPixLoading(false)
 
     if (error || !data) {
-      setPixError('Não foi possível gerar o Pix. Tente novamente.')
+      setPixError(await extractErrorMessage(error, 'Não foi possível gerar o Pix. Tente novamente.'))
       return
     }
 
