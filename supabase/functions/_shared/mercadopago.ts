@@ -70,8 +70,13 @@ async function callMpApi(body: unknown): Promise<MpOrder> {
   const data = await response.json()
 
   if (!response.ok) {
-    console.error('Erro ao criar order no Mercado Pago:', data)
-    throw new Error(data?.message ?? 'Falha ao criar pagamento no Mercado Pago.')
+    console.error('Erro ao criar order no Mercado Pago:', JSON.stringify(data))
+    const causeDetail = Array.isArray(data?.cause)
+      ? data.cause.map((c: { code?: string; description?: string }) => c.description ?? c.code).join('; ')
+      : null
+    const message =
+      data?.message || data?.error || causeDetail || `Falha ao criar pagamento no Mercado Pago (HTTP ${response.status}).`
+    throw new Error(message)
   }
 
   return data as MpOrder
@@ -132,8 +137,13 @@ export async function getOrder(orderId: string): Promise<MpOrder> {
   })
   const data = await response.json()
   if (!response.ok) {
-    console.error('Erro ao consultar order no Mercado Pago:', data)
-    throw new Error(data?.message ?? 'Falha ao consultar pagamento no Mercado Pago.')
+    console.error('Erro ao consultar order no Mercado Pago:', JSON.stringify(data))
+    const causeDetail = Array.isArray(data?.cause)
+      ? data.cause.map((c: { code?: string; description?: string }) => c.description ?? c.code).join('; ')
+      : null
+    const message =
+      data?.message || data?.error || causeDetail || `Falha ao consultar pagamento no Mercado Pago (HTTP ${response.status}).`
+    throw new Error(message)
   }
   return data as MpOrder
 }
