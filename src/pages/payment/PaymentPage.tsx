@@ -40,9 +40,10 @@ export function PaymentPage() {
   const [paymentId, setPaymentId] = useState<string | null>(null)
   const [approved, setApproved] = useState(false)
 
-  // Monta o Card Payment Brick quando a aba "Cartão" está ativa
+  // Monta o Card Payment Brick uma única vez (não remonta ao trocar de aba,
+  // para não perder os dados já digitados pelo usuário)
   useEffect(() => {
-    if (tab !== 'card' || !anamnesisId || !user) return
+    if (!anamnesisId || !user) return
 
     let cancelled = false
 
@@ -121,7 +122,7 @@ export function PaymentPage() {
       setCardReady(false)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tab, anamnesisId, user])
+  }, [anamnesisId, user])
 
   // Faz polling do status do pagamento enquanto aguarda confirmação do Pix
   useEffect(() => {
@@ -226,76 +227,72 @@ export function PaymentPage() {
             </button>
           </div>
 
-          {tab === 'card' && (
-            <div>
-              {!cardReady && !cardError && (
-                <p className="text-sm text-ink-soft text-center py-6">
-                  Carregando formulário de pagamento...
-                </p>
-              )}
-              <div id="cardPaymentBrick_container" />
-              {cardError && (
-                <p role="alert" className="text-sm text-danger bg-danger/10 rounded-lg px-4 py-3 mt-4">
-                  {cardError}
-                </p>
-              )}
-            </div>
-          )}
+          <div className={tab === 'card' ? '' : 'hidden'}>
+            {!cardReady && !cardError && (
+              <p className="text-sm text-ink-soft text-center py-6">
+                Carregando formulário de pagamento...
+              </p>
+            )}
+            <div id="cardPaymentBrick_container" />
+            {cardError && (
+              <p role="alert" className="text-sm text-danger bg-danger/10 rounded-lg px-4 py-3 mt-4">
+                {cardError}
+              </p>
+            )}
+          </div>
 
-          {tab === 'pix' && (
-            <div className="flex flex-col items-center gap-4 w-full">
-              {!pixData && (
-                <>
-                  <Input
-                    label="E-mail"
-                    type="email"
-                    placeholder="seuemail@exemplo.com"
-                    value={pixEmail}
-                    onChange={(e) => setPixEmail(e.target.value)}
-                    className="w-full"
+          <div className={`flex flex-col items-center gap-4 w-full ${tab === 'pix' ? '' : 'hidden'}`}>
+            {!pixData && (
+              <>
+                <Input
+                  label="E-mail"
+                  type="email"
+                  placeholder="seuemail@exemplo.com"
+                  value={pixEmail}
+                  onChange={(e) => setPixEmail(e.target.value)}
+                  className="w-full"
+                />
+                <Button
+                  onClick={handleGeneratePix}
+                  loading={pixLoading}
+                  disabled={!pixEmail.trim()}
+                  className="w-full"
+                >
+                  Gerar Pix
+                </Button>
+              </>
+            )}
+
+            {pixData?.qr_code_base64 && (
+              <>
+                <img
+                  src={`data:image/jpeg;base64,${pixData.qr_code_base64}`}
+                  alt="QR Code do Pix"
+                  className="w-48 h-48 rounded-lg border border-line"
+                />
+                <p className="text-xs text-ink-soft text-center">
+                  Escaneie o QR Code com o app do seu banco ou copie o código abaixo.
+                </p>
+                {pixData.qr_code && (
+                  <input
+                    readOnly
+                    value={pixData.qr_code}
+                    onFocus={(e) => e.currentTarget.select()}
+                    className="w-full rounded-lg border border-line bg-paper px-3 py-2 text-xs text-ink-soft font-mono-data"
                   />
-                  <Button
-                    onClick={handleGeneratePix}
-                    loading={pixLoading}
-                    disabled={!pixEmail.trim()}
-                    className="w-full"
-                  >
-                    Gerar Pix
-                  </Button>
-                </>
-              )}
-
-              {pixData?.qr_code_base64 && (
-                <>
-                  <img
-                    src={`data:image/jpeg;base64,${pixData.qr_code_base64}`}
-                    alt="QR Code do Pix"
-                    className="w-48 h-48 rounded-lg border border-line"
-                  />
-                  <p className="text-xs text-ink-soft text-center">
-                    Escaneie o QR Code com o app do seu banco ou copie o código abaixo.
-                  </p>
-                  {pixData.qr_code && (
-                    <input
-                      readOnly
-                      value={pixData.qr_code}
-                      onFocus={(e) => e.currentTarget.select()}
-                      className="w-full rounded-lg border border-line bg-paper px-3 py-2 text-xs text-ink-soft font-mono-data"
-                    />
-                  )}
-                  <p className="text-xs text-ink-soft">
-                    Aguardando confirmação do pagamento...
-                  </p>
-                </>
-              )}
-
-              {pixError && (
-                <p role="alert" className="text-sm text-danger bg-danger/10 rounded-lg px-4 py-3">
-                  {pixError}
+                )}
+                <p className="text-xs text-ink-soft">
+                  Aguardando confirmação do pagamento...
                 </p>
-              )}
-            </div>
-          )}
+              </>
+            )}
+
+            {pixError && (
+              <p role="alert" className="text-sm text-danger bg-danger/10 rounded-lg px-4 py-3">
+                {pixError}
+              </p>
+            )}
+          </div>
         </div>
       </div>
     </div>
