@@ -5,25 +5,10 @@ import { Input } from '../../components/ui/Input'
 import { MacroRing } from '../../components/ui/MacroRing'
 import { useAuth } from '../../contexts/AuthContext'
 import { supabase } from '../../lib/supabase'
+import { extractErrorMessage } from '../../lib/extractErrorMessage'
 import type { PaymentStatus } from '../../types/database'
 
 const PLAN_PRICE_LABEL = 'R$ 29,90'
-
-// supabase-js não expõe automaticamente o corpo da resposta de erro das Edge
-// Functions — precisa ler o Response bruto em error.context para pegar a
-// mensagem real que a function devolveu.
-async function extractErrorMessage(error: unknown, fallback: string): Promise<string> {
-  try {
-    const context = (error as { context?: Response })?.context
-    if (context && typeof context.json === 'function') {
-      const body = await context.json()
-      if (body?.error) return body.error as string
-    }
-  } catch {
-    // ignora e usa o fallback
-  }
-  return fallback
-}
 
 type Tab = 'card' | 'pix'
 

@@ -6,6 +6,7 @@ import { Textarea } from '../../components/ui/Textarea'
 import { MacroRing } from '../../components/ui/MacroRing'
 import { useAuth } from '../../contexts/AuthContext'
 import { generateMealPlanPdf } from '../../lib/generateMealPlanPdf'
+import { extractErrorMessage } from '../../lib/extractErrorMessage'
 import type { MealPlan } from '../../types/database'
 
 async function invokeGenerate(paymentId: string, adjustmentNote?: string) {
@@ -65,7 +66,9 @@ export function PlanPage() {
     setLoading(false)
 
     if (fnError || !data?.meal_plan) {
-      setError('Não foi possível gerar seu plano agora. Tente novamente em instantes.')
+      setError(
+        await extractErrorMessage(fnError, 'Não foi possível gerar seu plano agora. Tente novamente em instantes.')
+      )
       return
     }
     setPlan(data.meal_plan)
@@ -84,7 +87,7 @@ export function PlanPage() {
     setGenerating(false)
 
     if (fnError || !data?.meal_plan) {
-      setError('Não foi possível gerar o ajuste. Tente novamente.')
+      setError(await extractErrorMessage(fnError, 'Não foi possível gerar o ajuste. Tente novamente.'))
       return
     }
     setPlan(data.meal_plan)
