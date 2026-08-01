@@ -8,10 +8,12 @@
 
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models'
 
-// gemini-2.5-flash é um bom equilíbrio custo/qualidade e está no tier gratuito.
-// Para limites de requisição/dia ainda maiores, troque via secret GEMINI_MODEL
-// para "gemini-2.5-flash-lite".
-const DEFAULT_MODEL = 'gemini-2.5-flash'
+// Usamos o alias "gemini-flash-latest", que sempre aponta para o modelo Flash
+// mais recente disponível na conta — evita quebrar quando o Google descontinua
+// uma versão específica (ex: gemini-2.5-flash deixou de estar disponível para
+// contas novas em 2026). Para custo ainda menor, troque via secret GEMINI_MODEL
+// para "gemini-flash-lite-latest".
+const DEFAULT_MODEL = 'gemini-flash-latest'
 
 function getApiKey(): string {
   const key = Deno.env.get('GEMINI_API_KEY')
