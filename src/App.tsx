@@ -9,6 +9,7 @@ import { Dashboard } from './pages/Dashboard'
 import { AnamnesisForm } from './pages/anamnesis/AnamnesisForm'
 import { PaymentPage } from './pages/payment/PaymentPage'
 import { PlanPage } from './pages/plan/PlanPage'
+import { CentralPage } from './pages/central/CentralPage'
 
 export default function App() {
   return (
@@ -54,6 +55,15 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <PlanPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/central"
+            element={
+              <ProtectedRoute>
+                <CentralPage />
               </ProtectedRoute>
             }
           />

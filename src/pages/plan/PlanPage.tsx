@@ -7,6 +7,7 @@ import { MacroRing } from '../../components/ui/MacroRing'
 import { useAuth } from '../../contexts/AuthContext'
 import { generateMealPlanPdf } from '../../lib/generateMealPlanPdf'
 import { extractErrorMessage } from '../../lib/extractErrorMessage'
+import { AppHeader } from '../../components/layout/AppHeader'
 import type { MealPlan } from '../../types/database'
 
 async function invokeGenerate(paymentId: string, adjustmentNote?: string) {
@@ -131,12 +132,10 @@ export function PlanPage() {
   const fatPct = totalMacroCal ? 100 - proteinPct - carbsPct : 0
 
   return (
-    <div className="min-h-screen bg-paper px-4 py-10 sm:py-16">
+    <div className="min-h-screen bg-paper">
+      <AppHeader />
+      <div className="px-4 py-10 sm:py-16">
       <div className="max-w-2xl mx-auto">
-        <div className="mb-6 text-center">
-          <span className="font-display text-xl text-primary">NutriPlano AI</span>
-        </div>
-
         <div className="bg-surface rounded-2xl border border-line p-6 sm:p-8 mb-6">
           <div className="flex flex-col sm:flex-row items-center gap-6">
             <MacroRing protein={proteinPct} carbs={carbsPct} fat={fatPct} size={160} />
@@ -246,10 +245,11 @@ export function PlanPage() {
         </div>
 
         <div className="text-center mt-6">
-          <Button variant="ghost" onClick={() => navigate('/painel')}>
-            Voltar ao painel
+          <Button variant="ghost" onClick={() => navigate('/central')}>
+            Ver histórico completo
           </Button>
         </div>
+      </div>
       </div>
     </div>
   )

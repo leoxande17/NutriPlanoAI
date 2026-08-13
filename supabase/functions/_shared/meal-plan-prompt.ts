@@ -19,6 +19,24 @@ export interface AnamnesisForPrompt {
   medical_conditions: string | null
 }
 
+// Resumo da evolução do usuário (registros de peso/medidas feitos em "Minha
+// área"), usado para a IA adaptar o plano ao progresso real — não só ao
+// ponto de partida registrado na anamnese.
+export interface ProgressSummary {
+  latestWeightKg: number
+  latestRecordedAt: string
+  weightDeltaKg: number | null // desde o registro mais antigo considerado
+  oldestRecordedAt: string | null
+  latestMeasurements: {
+    waistCm: number | null
+    hipCm: number | null
+    chestCm: number | null
+    armCm: number | null
+    thighCm: number | null
+    bodyFatPct: number | null
+  }
+}
+
 export const MEAL_PLAN_SYSTEM_PROMPT = `Você é um assistente que apoia a criação de planos alimentares educativos e personalizados, usados em um aplicativo brasileiro chamado NutriPlano AI.
 
 Regras obrigatórias:
@@ -29,6 +47,7 @@ Regras obrigatórias:
 - Respeite exatamente o número de refeições por dia solicitado.
 - Se a pessoa treina, posicione as refeições com mais carboidrato perto do horário de treino (pré/pós-treino).
 - Use alimentos comuns e acessíveis no Brasil, com medidas caseiras (ex: "2 fatias", "1 concha média", "150g").
+- Se houver dados de evolução (peso/medidas registrados ao longo do tempo), leve-os em conta: ajuste a abordagem se o progresso estiver mais lento ou mais rápido que o esperado para o objetivo, mas NUNCA saia das metas de calorias/macros já calculadas — o ajuste deve aparecer nas escolhas de alimentos e no campo "notes", não nos números.
 - Este plano é educativo e não substitui acompanhamento profissional de nutricionista — inclua essa observação no campo "notes".
 
 Formato JSON exato de resposta:
@@ -49,6 +68,44 @@ Formato JSON exato de resposta:
   "recommendations": [string]
 }`
 
+// Linha do banco (progress_entries) — tipo mínimo local, mesma lógica das
+// demais funções compartilhadas (Edge Functions não importam de src/).
+export interface ProgressEntryRow {
+  recorded_at: string
+  weight_kg: number
+  waist_cm: number | null
+  hip_cm: number | null
+  chest_cm: number | null
+  arm_cm: number | null
+  thigh_cm: number | null
+  body_fat_pct: number | null
+}
+
+// Recebe os registros de evolução (já ordenados do mais recente para o mais
+// antigo) e monta o resumo usado no prompt. Retorna null se não há registros.
+export function buildProgressSummary(entries: ProgressEntryRow[]): ProgressSummary | null {
+  if (entries.length === 0) return null
+
+  const latest = entries[0]
+  const oldest = entries[entries.length - 1]
+  const hasTrend = entries.length > 1 && oldest.recorded_at !== latest.recorded_at
+
+  return {
+    latestWeightKg: Number(latest.weight_kg),
+    latestRecordedAt: latest.recorded_at,
+    weightDeltaKg: hasTrend ? Number(latest.weight_kg) - Number(oldest.weight_kg) : null,
+    oldestRecordedAt: hasTrend ? oldest.recorded_at : null,
+    latestMeasurements: {
+      waistCm: latest.waist_cm !== null ? Number(latest.waist_cm) : null,
+      hipCm: latest.hip_cm !== null ? Number(latest.hip_cm) : null,
+      chestCm: latest.chest_cm !== null ? Number(latest.chest_cm) : null,
+      armCm: latest.arm_cm !== null ? Number(latest.arm_cm) : null,
+      thighCm: latest.thigh_cm !== null ? Number(latest.thigh_cm) : null,
+      bodyFatPct: latest.body_fat_pct !== null ? Number(latest.body_fat_pct) : null,
+    },
+  }
+}
+
 const GOAL_LABELS: Record<string, string> = {
   emagrecimento: 'Emagrecimento (redução de gordura corporal)',
   hipertrofia: 'Hipertrofia (ganho de massa muscular)',
@@ -60,7 +117,8 @@ export function buildMealPlanUserPrompt(
   anamnesis: AnamnesisForPrompt,
   targets: NutritionTargets,
   previousPlan?: unknown,
-  adjustmentNote?: string
+  adjustmentNote?: string,
+  progress?: ProgressSummary | null
 ): string {
   const lines: string[] = []
 
@@ -85,6 +143,29 @@ export function buildMealPlanUserPrompt(
   if (anamnesis.dietary_restrictions?.length)
     lines.push(`- Restrições alimentares: ${anamnesis.dietary_restrictions.join(', ')}`)
   if (anamnesis.medical_conditions) lines.push(`- Condições de saúde relevantes: ${anamnesis.medical_conditions}`)
+
+  if (progress) {
+    lines.push('')
+    lines.push('Evolução registrada pela pessoa desde a anamnese:')
+    lines.push(`- Peso mais recente: ${progress.latestWeightKg}kg (registrado em ${progress.latestRecordedAt})`)
+    if (progress.weightDeltaKg !== null && progress.oldestRecordedAt) {
+      const sign = progress.weightDeltaKg > 0 ? '+' : ''
+      lines.push(
+        `- Variação de peso: ${sign}${progress.weightDeltaKg.toFixed(1)}kg desde ${progress.oldestRecordedAt}`
+      )
+    }
+    const m = progress.latestMeasurements
+    const measurementParts: string[] = []
+    if (m.waistCm) measurementParts.push(`cintura ${m.waistCm}cm`)
+    if (m.hipCm) measurementParts.push(`quadril ${m.hipCm}cm`)
+    if (m.chestCm) measurementParts.push(`peitoral ${m.chestCm}cm`)
+    if (m.armCm) measurementParts.push(`braço ${m.armCm}cm`)
+    if (m.thighCm) measurementParts.push(`coxa ${m.thighCm}cm`)
+    if (m.bodyFatPct) measurementParts.push(`${m.bodyFatPct}% de gordura corporal`)
+    if (measurementParts.length > 0) {
+      lines.push(`- Últimas medidas registradas: ${measurementParts.join(', ')}`)
+    }
+  }
 
   lines.push('')
   lines.push('Metas nutricionais diárias já calculadas (respeitar rigorosamente):')

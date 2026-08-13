@@ -13,7 +13,7 @@ import { corsHeaders, handleCors } from '../_shared/cors.ts'
 import { getAuthenticatedUser, getSupabaseAdmin } from '../_shared/supabase-admin.ts'
 import { calculateNutritionTargets } from '../_shared/nutrition.ts'
 import { callGeminiForJson } from '../_shared/gemini.ts'
-import { MEAL_PLAN_SYSTEM_PROMPT, buildMealPlanUserPrompt } from '../_shared/meal-plan-prompt.ts'
+import { MEAL_PLAN_SYSTEM_PROMPT, buildMealPlanUserPrompt, buildProgressSummary } from '../_shared/meal-plan-prompt.ts'
 import type { AnamnesisForPrompt } from '../_shared/meal-plan-prompt.ts'
 import { isValidMealPlanContent } from '../_shared/meal-plan-validator.ts'
 import type { MealPlanContent } from '../_shared/meal-plan-validator.ts'
@@ -108,11 +108,24 @@ Deno.serve(async (req: Request) => {
     }
 
     const targets = calculateNutritionTargets(anamnesis)
+
+    // Busca os registros de evolução (peso/medidas) mais recentes do usuário
+    // para a IA adaptar o plano ao progresso real, não só ao ponto de partida.
+    const { data: progressRows } = await supabaseAdmin
+      .from('progress_entries')
+      .select('recorded_at, weight_kg, waist_cm, hip_cm, chest_cm, arm_cm, thigh_cm, body_fat_pct')
+      .eq('user_id', user.id)
+      .order('recorded_at', { ascending: false })
+      .limit(10)
+
+    const progressSummary = buildProgressSummary(progressRows ?? [])
+
     const prompt = buildMealPlanUserPrompt(
       anamnesis as AnamnesisForPrompt,
       targets,
       previousPlan?.content,
-      adjustment_note
+      adjustment_note,
+      progressSummary
     )
 
     const content = await callGeminiForJson<MealPlanContent>(MEAL_PLAN_SYSTEM_PROMPT, prompt)

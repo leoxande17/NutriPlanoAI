@@ -101,6 +101,21 @@ export type MealPlan = {
   created_at: string
 }
 
+export type ProgressEntry = {
+  id: string
+  user_id: string
+  recorded_at: string
+  weight_kg: number
+  waist_cm: number | null
+  hip_cm: number | null
+  chest_cm: number | null
+  arm_cm: number | null
+  thigh_cm: number | null
+  body_fat_pct: number | null
+  notes: string | null
+  created_at: string
+}
+
 // Estrutura mínima para o client tipado do supabase-js
 export type Database = {
   public: {
@@ -127,6 +142,12 @@ export type Database = {
         Row: MealPlan
         Insert: Omit<MealPlan, 'id' | 'created_at'>
         Update: Partial<Omit<MealPlan, 'id' | 'user_id'>>
+        Relationships: []
+      }
+      progress_entries: {
+        Row: ProgressEntry
+        Insert: Omit<ProgressEntry, 'id' | 'created_at'>
+        Update: Partial<Omit<ProgressEntry, 'id' | 'user_id'>>
         Relationships: []
       }
     }
