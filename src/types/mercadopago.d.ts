@@ -12,6 +12,11 @@ interface MercadoPagoBricksBuilder {
     containerId: string,
     settings: {
       initialization: { amount: number }
+      customization?: {
+        visual?: {
+          style?: { theme?: 'default' | 'dark' | 'bootstrap' | 'flat' }
+        }
+      }
       callbacks: {
         onReady?: () => void
         onSubmit: (

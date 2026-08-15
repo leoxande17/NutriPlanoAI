@@ -4,6 +4,7 @@ import { supabase } from '../../../lib/supabase'
 import { useAuth } from '../../../contexts/AuthContext'
 import { Button } from '../../../components/ui/Button'
 import { generateMealPlanPdf } from '../../../lib/generateMealPlanPdf'
+import { planVersionLabel } from '../../../lib/planVersionLabel'
 import type { MealPlan } from '../../../types/database'
 
 export function PlansHistoryTab() {
@@ -47,8 +48,7 @@ export function PlansHistoryTab() {
         >
           <div>
             <p className="font-mono-data text-xs uppercase tracking-widest text-coral mb-1">
-              Versão {plan.version}
-              {plan.adjustment_note ? ' · ajuste' : ''}
+              {planVersionLabel(plan)}
             </p>
             <p className="font-display text-base text-ink">
               {plan.content.summary.dailyCalories} kcal/dia
@@ -65,7 +65,7 @@ export function PlansHistoryTab() {
             <Button variant="ghost" onClick={() => generateMealPlanPdf(plan, user?.user_metadata?.full_name)}>
               PDF
             </Button>
-            <Button variant="ghost" onClick={() => navigate(`/plano/${plan.payment_id}`)}>
+            <Button variant="ghost" onClick={() => navigate(`/plano/${plan.payment_id}?versao=${plan.version}`)}>
               Ver
             </Button>
           </div>

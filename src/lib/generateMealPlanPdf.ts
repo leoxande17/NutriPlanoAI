@@ -8,7 +8,7 @@ const COLORS = {
   inkSoft: [74, 90, 80] as [number, number, number],
   primary: [31, 77, 58] as [number, number, number],
   primarySoft: [228, 237, 231] as [number, number, number],
-  coral: [255, 107, 74] as [number, number, number],
+  coral: [194, 69, 31] as [number, number, number], // mesmo tom acessível usado no app (--color-coral)
   mango: [244, 185, 66] as [number, number, number],
   line: [221, 228, 220] as [number, number, number],
   white: [255, 255, 255] as [number, number, number],

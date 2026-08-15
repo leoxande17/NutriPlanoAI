@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { AppHeader } from '../../components/layout/AppHeader'
 import { ProgressTab } from './tabs/ProgressTab'
 import { PlansHistoryTab } from './tabs/PlansHistoryTab'
@@ -14,8 +14,16 @@ const TABS: { key: Tab; label: string }[] = [
   { key: 'payments', label: 'Pagamentos' },
 ]
 
+const VALID_TABS = TABS.map((t) => t.key)
+
 export function CentralPage() {
-  const [tab, setTab] = useState<Tab>('progress')
+  const [searchParams, setSearchParams] = useSearchParams()
+  const tabParam = searchParams.get('aba')
+  const tab: Tab = VALID_TABS.includes(tabParam as Tab) ? (tabParam as Tab) : 'progress'
+
+  function setTab(next: Tab) {
+    setSearchParams(next === 'progress' ? {} : { aba: next }, { replace: false })
+  }
 
   return (
     <div className="min-h-screen bg-paper">

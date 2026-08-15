@@ -58,6 +58,11 @@ export function PaymentPage() {
       try {
         const controller = await mp.bricks().create('cardPayment', 'cardPaymentBrick_container', {
           initialization: { amount: 29.9 },
+          // Tema mais neutro que o padrão azul do Mercado Pago — não dá pra
+          // customizar cores livremente (só os temas prontos), mas "flat"
+          // reduz o "cromado" próprio do Brick e combina melhor com o card
+          // branco do app.
+          customization: { visual: { style: { theme: 'flat' } } },
           callbacks: {
             onReady: () => {
               if (!cancelled) setCardReady(true)

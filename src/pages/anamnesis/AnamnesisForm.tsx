@@ -10,6 +10,8 @@ import {
   type AnamnesisFormData,
 } from '../../types/anamnesis-form'
 import type { GoalType, ActivityLevel } from '../../types/database'
+import { validateAnamnesisStep } from '../../lib/validateAnamnesisStep'
+import type { AnamnesisErrors } from '../../lib/validateAnamnesisStep'
 import { BodyDataStep } from './steps/BodyDataStep'
 import { GoalStep } from './steps/GoalStep'
 import { TrainingStep } from './steps/TrainingStep'
@@ -26,37 +28,7 @@ const STEP_LABELS = [
   'Revisão final',
 ]
 
-type Errors = Partial<Record<keyof AnamnesisFormData, string>>
-
-function validateStep(step: number, data: AnamnesisFormData): Errors {
-  const errors: Errors = {}
-
-  if (step === 0) {
-    if (!data.weight_kg || Number(data.weight_kg) <= 0) errors.weight_kg = 'Informe um peso válido.'
-    if (!data.height_cm || Number(data.height_cm) <= 0) errors.height_cm = 'Informe uma altura válida.'
-    if (!data.age || Number(data.age) <= 0) errors.age = 'Informe uma idade válida.'
-    if (!data.gender) errors.gender = 'Selecione uma opção.'
-  }
-
-  if (step === 1) {
-    if (!data.goal) errors.goal = 'Selecione um objetivo.'
-    if (!data.activity_level) errors.activity_level = 'Selecione seu nível de atividade.'
-  }
-
-  if (step === 2 && data.trains) {
-    if (!data.training_days_per_week) errors.training_days_per_week = 'Informe os dias de treino.'
-    if (!data.training_time) errors.training_time = 'Informe o horário.'
-    if (!data.training_type) errors.training_type = 'Informe o tipo de treino.'
-  }
-
-  if (step === 3) {
-    if (!data.meals_per_day || Number(data.meals_per_day) < 3) {
-      errors.meals_per_day = 'Informe ao menos 3 refeições por dia.'
-    }
-  }
-
-  return errors
-}
+type Errors = AnamnesisErrors
 
 export function AnamnesisForm() {
   const { user } = useAuth()
@@ -83,7 +55,7 @@ export function AnamnesisForm() {
   }
 
   function goNext() {
-    const stepErrors = validateStep(step, data)
+    const stepErrors = validateAnamnesisStep(step, data)
     if (Object.keys(stepErrors).length > 0) {
       setErrors(stepErrors)
       return

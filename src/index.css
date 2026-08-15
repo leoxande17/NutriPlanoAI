@@ -9,9 +9,15 @@
   --color-primary: #1F4D3A;
   --color-primary-dark: #133327;
   --color-primary-soft: #E4EDE7;
-  --color-coral: #FF6B4A;
-  --color-coral-dark: #E5502F;
+  /* coral/coral-dark ajustados para atingir contraste AA (4.5:1) tanto como
+     texto em fundo claro quanto como texto branco sobre o botão — os tons
+     originais (#FF6B4A / #E5502F) ficavam abaixo de 3:1 nos dois casos. */
+  --color-coral: #C2451F;
+  --color-coral-dark: #9A3517;
   --color-mango: #F4B942;
+  /* Tom escuro do amarelo-manga, para uso como TEXTO (o --color-mango claro
+     é usado só como preenchimento de formas/anéis, nunca atrás de texto). */
+  --color-mango-text: #7A5A0F;
   --color-line: #DDE4DC;
   --color-danger: #C4432B;
 

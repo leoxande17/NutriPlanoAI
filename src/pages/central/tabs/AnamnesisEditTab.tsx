@@ -9,6 +9,7 @@ import { MealsStep } from '../../anamnesis/steps/MealsStep'
 import { HealthStep } from '../../anamnesis/steps/HealthStep'
 import { initialAnamnesisFormData } from '../../../types/anamnesis-form'
 import type { AnamnesisFormData } from '../../../types/anamnesis-form'
+import { validateAllAnamnesisSteps } from '../../../lib/validateAnamnesisStep'
 import type { ActivityLevel, Anamnesis, GoalType } from '../../../types/database'
 
 function anamnesisToFormData(a: Anamnesis): AnamnesisFormData {
@@ -42,11 +43,26 @@ const SECTION_TITLES = [
 
 type Errors = Partial<Record<keyof AnamnesisFormData, string>>
 
+// Mapeia cada campo à seção (índice) onde ele aparece nesta tela, para poder
+// rolar até a primeira seção com erro quando a validação falhar.
+const FIELD_SECTION: Record<string, number> = {
+  weight_kg: 0,
+  height_cm: 0,
+  age: 0,
+  gender: 0,
+  goal: 1,
+  activity_level: 1,
+  training_days_per_week: 2,
+  training_time: 2,
+  training_type: 2,
+  meals_per_day: 3,
+}
+
 export function AnamnesisEditTab() {
   const { user } = useAuth()
   const [anamnesisId, setAnamnesisId] = useState<string | null>(null)
   const [data, setData] = useState<AnamnesisFormData>(initialAnamnesisFormData)
-  const [errors] = useState<Errors>({})
+  const [errors, setErrors] = useState<Errors>({})
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -74,6 +90,7 @@ export function AnamnesisEditTab() {
 
   function updateField(field: keyof AnamnesisFormData, value: string) {
     setData((prev) => ({ ...prev, [field]: value }))
+    setErrors((prev) => ({ ...prev, [field]: undefined }))
     setSaved(false)
   }
 
@@ -89,6 +106,19 @@ export function AnamnesisEditTab() {
 
   async function handleSave() {
     if (!anamnesisId) return
+
+    const validationErrors = validateAllAnamnesisSteps(data)
+    if (Object.keys(validationErrors).length > 0) {
+      setErrors(validationErrors)
+      setError('Revise os campos destacados antes de salvar.')
+      const firstInvalidField = Object.keys(validationErrors)[0]
+      const sectionIndex = FIELD_SECTION[firstInvalidField] ?? 0
+      document
+        .getElementById(`anamnesis-section-${sectionIndex}`)
+        ?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      return
+    }
+
     setSaving(true)
     setError(null)
 
@@ -150,7 +180,11 @@ export function AnamnesisEditTab() {
       </p>
 
       {steps.map((StepComponent, i) => (
-        <div key={i} className="bg-surface rounded-2xl border border-line p-6">
+        <div
+          key={i}
+          id={`anamnesis-section-${i}`}
+          className="bg-surface rounded-2xl border border-line p-6 scroll-mt-20"
+        >
           <h2 className="font-display text-base text-ink mb-4">{SECTION_TITLES[i]}</h2>
           {StepComponent}
         </div>

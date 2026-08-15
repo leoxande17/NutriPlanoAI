@@ -50,6 +50,7 @@ export function ProgressTab() {
   const [measurements, setMeasurements] = useState<MeasurementInputs>(emptyMeasurements)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
 
   async function loadEntries() {
     if (!user) return
@@ -116,6 +117,23 @@ export function ProgressTab() {
     setWeight('')
     setMeasurements(emptyMeasurements)
     setShowForm(false)
+    loadEntries()
+  }
+
+  async function handleDelete(id: string) {
+    const confirmed = window.confirm(
+      'Excluir este registro? Essa ação não pode ser desfeita.'
+    )
+    if (!confirmed) return
+
+    setDeletingId(id)
+    const { error: deleteError } = await supabase.from('progress_entries').delete().eq('id', id)
+    setDeletingId(null)
+
+    if (deleteError) {
+      setError('Não foi possível excluir. Tente novamente.')
+      return
+    }
     loadEntries()
   }
 
@@ -197,6 +215,36 @@ export function ProgressTab() {
           </>
         )}
       </div>
+
+      {!loading && entries.length > 0 && (
+        <div className="bg-surface rounded-2xl border border-line overflow-hidden">
+          <p className="text-xs text-ink-soft uppercase tracking-wide font-mono-data px-5 pt-4 pb-2">
+            Registros recentes
+          </p>
+          {entries.slice(0, 5).map((entry, i) => (
+            <div
+              key={entry.id}
+              className={`flex items-center justify-between gap-4 px-5 py-3 ${
+                i !== Math.min(entries.length, 5) - 1 ? 'border-b border-line' : ''
+              }`}
+            >
+              <div>
+                <span className="font-mono-data text-sm text-ink">{Number(entry.weight_kg)}kg</span>
+                <span className="text-xs text-ink-soft ml-2">{formatDate(entry.recorded_at)}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => handleDelete(entry.id)}
+                disabled={deletingId === entry.id}
+                className="text-xs text-ink-soft hover:text-danger transition-colors px-2 py-1"
+                aria-label={`Excluir registro de ${Number(entry.weight_kg)}kg em ${formatDate(entry.recorded_at)}`}
+              >
+                {deletingId === entry.id ? 'Excluindo...' : 'Excluir'}
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
 
       {entries.length > 0 && !showForm && (
         <Button variant="ghost" onClick={() => setShowForm(true)} className="self-start">

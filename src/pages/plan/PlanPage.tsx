@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { Button } from '../../components/ui/Button'
 import { Textarea } from '../../components/ui/Textarea'
@@ -8,6 +8,7 @@ import { useAuth } from '../../contexts/AuthContext'
 import { generateMealPlanPdf } from '../../lib/generateMealPlanPdf'
 import { extractErrorMessage } from '../../lib/extractErrorMessage'
 import { AppHeader } from '../../components/layout/AppHeader'
+import { planVersionLabel } from '../../lib/planVersionLabel'
 import type { MealPlan } from '../../types/database'
 
 async function invokeGenerate(paymentId: string, adjustmentNote?: string) {
@@ -22,13 +23,20 @@ async function invokeGenerate(paymentId: string, adjustmentNote?: string) {
 
 export function PlanPage() {
   const { paymentId } = useParams<{ paymentId: string }>()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const requestedVersion = searchParams.get('versao') ? Number(searchParams.get('versao')) : null
   const navigate = useNavigate()
   const { user } = useAuth()
 
   const [plan, setPlan] = useState<MealPlan | null>(null)
+  const [latestVersion, setLatestVersion] = useState<number | null>(null)
   const [expiresAt, setExpiresAt] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+  // "generating" cobre apenas a geração inicial (tela cheia, ainda não há
+  // nada pra mostrar). "adjusting" cobre o pedido de ajuste sobre um plano
+  // já visível — não deve esconder a tela inteira, só o botão/formulário.
   const [generating, setGenerating] = useState(false)
+  const [adjusting, setAdjusting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const [showAdjustForm, setShowAdjustForm] = useState(false)
@@ -46,16 +54,43 @@ export function PlanPage() {
       .single()
     setExpiresAt(payment?.expires_at ?? null)
 
-    const { data: existing } = await supabase
+    // Descobre sempre qual é a versão mais recente, mesmo quando o usuário
+    // pediu pra ver uma versão específica — usamos isso pra mostrar o aviso
+    // de "você está vendo uma versão antiga".
+    const { data: latest } = await supabase
       .from('meal_plans')
-      .select('*')
+      .select('version')
       .eq('payment_id', paymentId)
       .order('version', { ascending: false })
       .limit(1)
       .maybeSingle()
+    setLatestVersion(latest?.version ?? null)
 
-    if (existing) {
-      setPlan(existing)
+    if (requestedVersion) {
+      const { data: specific } = await supabase
+        .from('meal_plans')
+        .select('*')
+        .eq('payment_id', paymentId)
+        .eq('version', requestedVersion)
+        .maybeSingle()
+
+      setLoading(false)
+      if (!specific) {
+        setError('Essa versão do plano não foi encontrada.')
+        return
+      }
+      setPlan(specific)
+      return
+    }
+
+    if (latest) {
+      const { data: existing } = await supabase
+        .from('meal_plans')
+        .select('*')
+        .eq('payment_id', paymentId)
+        .eq('version', latest.version)
+        .maybeSingle()
+      setPlan(existing ?? null)
       setLoading(false)
       return
     }
@@ -73,7 +108,8 @@ export function PlanPage() {
       return
     }
     setPlan(data.meal_plan)
-  }, [paymentId])
+    setLatestVersion(data.meal_plan.version)
+  }, [paymentId, requestedVersion])
 
   useEffect(() => {
     loadOrGenerate()
@@ -81,26 +117,32 @@ export function PlanPage() {
 
   async function handleRequestAdjustment() {
     if (!paymentId || !adjustmentNote.trim()) return
-    setGenerating(true)
+    setAdjusting(true)
     setError(null)
 
     const { data, error: fnError } = await invokeGenerate(paymentId, adjustmentNote.trim())
-    setGenerating(false)
+    setAdjusting(false)
 
     if (fnError || !data?.meal_plan) {
       setError(await extractErrorMessage(fnError, 'Não foi possível gerar o ajuste. Tente novamente.'))
       return
     }
     setPlan(data.meal_plan)
+    setLatestVersion(data.meal_plan.version)
     setShowAdjustForm(false)
     setAdjustmentNote('')
   }
 
   const canAdjust = expiresAt ? new Date(expiresAt) > new Date() : false
+  const isViewingOldVersion = !!plan && !!latestVersion && plan.version !== latestVersion
 
   function handleDownloadPdf() {
     if (!plan) return
     generateMealPlanPdf(plan, user?.user_metadata?.full_name)
+  }
+
+  function goToLatestVersion() {
+    setSearchParams({}, { replace: true })
   }
 
   if (loading || generating) {
@@ -136,19 +178,30 @@ export function PlanPage() {
       <AppHeader />
       <div className="px-4 py-10 sm:py-16">
       <div className="max-w-2xl mx-auto">
+        {isViewingOldVersion && (
+          <div className="bg-mango/20 rounded-xl px-4 py-3 mb-6 flex items-center justify-between gap-3 flex-wrap">
+            <p className="text-sm text-ink">
+              Você está vendo uma versão anterior do seu plano.
+            </p>
+            <Button variant="ghost" onClick={goToLatestVersion}>
+              Ver versão mais recente
+            </Button>
+          </div>
+        )}
+
         <div className="bg-surface rounded-2xl border border-line p-6 sm:p-8 mb-6">
           <div className="flex flex-col sm:flex-row items-center gap-6">
             <MacroRing protein={proteinPct} carbs={carbsPct} fat={fatPct} size={160} />
             <div className="flex-1 text-center sm:text-left">
               <p className="font-mono-data text-xs uppercase tracking-widest text-coral mb-1">
-                Versão {plan.version}
+                {planVersionLabel(plan)}
               </p>
               <h1 className="font-display text-2xl text-ink mb-2">
                 {summary.dailyCalories} kcal por dia
               </h1>
               <div className="flex gap-4 justify-center sm:justify-start text-sm font-mono-data text-ink-soft">
                 <span><span className="text-primary font-medium">{summary.macros.protein}g</span> proteína</span>
-                <span><span className="text-mango font-medium">{summary.macros.carbs}g</span> carbo</span>
+                <span><span className="text-mango-text font-medium">{summary.macros.carbs}g</span> carbo</span>
                 <span><span className="text-coral font-medium">{summary.macros.fat}g</span> gordura</span>
               </div>
             </div>
@@ -203,7 +256,11 @@ export function PlanPage() {
         )}
 
         <div className="bg-surface rounded-2xl border border-line p-6">
-          {canAdjust ? (
+          {isViewingOldVersion ? (
+            <p className="text-sm text-ink-soft">
+              Ajustes só podem ser pedidos a partir da versão mais recente do plano.
+            </p>
+          ) : canAdjust ? (
             <>
               <p className="text-sm text-ink-soft mb-3">
                 Você pode pedir ajustes no seu plano até{' '}
@@ -225,12 +282,12 @@ export function PlanPage() {
                   <div className="flex gap-3">
                     <Button
                       onClick={handleRequestAdjustment}
-                      loading={generating}
+                      loading={adjusting}
                       disabled={!adjustmentNote.trim()}
                     >
                       Gerar novo plano
                     </Button>
-                    <Button variant="ghost" onClick={() => setShowAdjustForm(false)}>
+                    <Button variant="ghost" onClick={() => setShowAdjustForm(false)} disabled={adjusting}>
                       Cancelar
                     </Button>
                   </div>
