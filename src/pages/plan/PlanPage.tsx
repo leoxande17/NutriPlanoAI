@@ -295,9 +295,14 @@ export function PlanPage() {
               )}
             </>
           ) : (
-            <p className="text-sm text-ink-soft">
-              A janela de ajustes gratuitos deste plano já encerrou.
-            </p>
+            <div>
+              <p className="text-sm text-ink-soft mb-3">
+                A janela de ajustes gratuitos deste plano já encerrou.
+              </p>
+              <Button onClick={() => navigate(`/renovar/${plan.anamnesis_id}`)}>
+                Renovar plano
+              </Button>
+            </div>
           )}
         </div>
 
