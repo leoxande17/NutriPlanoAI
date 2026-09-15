@@ -52,6 +52,17 @@ h1, h2, h3, .font-display {
   outline-offset: 2px;
 }
 
+/* Faixas de abas/navegação: mantêm a rolagem horizontal funcional em telas
+   estreitas, mas sem exibir a barra de rolagem (que aparecia desnecessária
+   em telas largas, onde todas as abas já cabem). */
+.scrollbar-none {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE/Edge legado */
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Edge */
+}
+
 @media (prefers-reduced-motion: reduce) {
   * {
     animation-duration: 0.01ms !important;

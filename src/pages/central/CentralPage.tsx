@@ -37,7 +37,7 @@ export function CentralPage() {
           <h1 className="font-display text-2xl text-ink">Seu histórico e sua evolução</h1>
         </div>
 
-        <div className="flex gap-1 mb-6 overflow-x-auto border-b border-line">
+        <div className="flex gap-1 mb-6 overflow-x-auto overflow-y-hidden scrollbar-none border-b border-line">
           {TABS.map((t) => (
             <button
               key={t.key}

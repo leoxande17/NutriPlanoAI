@@ -35,7 +35,7 @@ export function AppHeader() {
           NutriPlano AI
         </Link>
 
-        <nav className="flex items-center gap-1 overflow-x-auto">
+        <nav className="flex items-center gap-1 overflow-x-auto overflow-y-hidden scrollbar-none">
           <Link to="/painel" className={linkClass(isMyPlanActive)} aria-current={isMyPlanActive ? 'page' : undefined}>
             Meu plano
           </Link>
